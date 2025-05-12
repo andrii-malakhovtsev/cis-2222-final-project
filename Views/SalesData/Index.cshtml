@@ -1,0 +1,54 @@
+﻿@model IEnumerable<Final_Project.Models.SalesData>
+
+@{
+    ViewData["Title"] = "Index";
+}
+
+<h1>Sales</h1>
+
+<p>
+    <a asp-action="Create">Create New</a>
+</p>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>
+                @Html.DisplayNameFor(model => model.Quarter)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.Year)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.Amount)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.Employee)
+            </th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var item in Model)
+        {
+            <tr>
+                <td>
+                    @Html.DisplayFor(modelItem => item.Quarter)
+                </td>
+                <td>
+                    @Html.DisplayFor(modelItem => item.Year)
+                </td>
+                <td>
+                    @Html.DisplayFor(modelItem => item.Amount)
+                </td>
+                <td>
+                    @Html.DisplayFor(modelItem => item.Employee.FullName)
+                </td>
+                <td>
+                    <a asp-action="Edit" asp-route-id="@item.SalesDataId">Edit</a> |
+                    <a asp-action="Delete" asp-route-id="@item.SalesDataId">Delete</a>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>

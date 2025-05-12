@@ -1,0 +1,56 @@
+﻿@{
+    ViewData["Title"] = "Home Page";
+}
+
+<h1>Sales Overview</h1>
+
+<!-- Employee Filter Form -->
+<form method="get" asp-controller="Home" asp-action="Index">
+    <label for="employeeId">Select Employee:</label>
+    <select id="employeeId" name="employeeId" asp-items="ViewBag.EmployeeList" onchange="this.form.submit()">
+        <option value="">-- All Employees --</option>
+    </select>
+</form>
+<br />
+
+<!-- Display Quarterly Sales with Total as last row -->
+<h2>Quarterly Sales</h2>
+<table class="table">
+    <thead>
+        <tr>
+            <th>Quarter</th>
+            <th>Year</th>
+            <th>Employee</th>
+            <th>Amount</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var quarterly in ViewData["QuarterlySales"] as IEnumerable<dynamic>)
+        {
+            <tr>
+                <td>@quarterly.Quarter</td>
+                <td>@quarterly.Year</td>
+                <td>@quarterly.EmployeeName</td>
+                <td>@($"{quarterly.TotalAmount:C}")</td>
+            </tr>
+        }
+        <!-- Total Sales Row -->
+        <tr class="table-active">
+            <td colspan="3" class="text-end"><strong>Total Sales:</strong></td>
+            <td><strong>@($"{ViewBag.TotalSales:C}")</strong></td>
+        </tr>
+    </tbody>
+</table>
+
+@section Scripts {
+    <script>
+        // Make sure dropdown selection stays after page reload
+        document.addEventListener('DOMContentLoaded', function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const selectedEmployeeId = urlParams.get('employeeId');
+            if (selectedEmployeeId) {
+                document.getElementById('employeeId').value = selectedEmployeeId;
+            }
+        });
+    </script>
+}
