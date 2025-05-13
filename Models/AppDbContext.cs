@@ -27,19 +27,18 @@ namespace Final_Project.Models
                 .Property(s => s.Amount)
                 .HasColumnType("decimal(18,2)");  // precision to 18 and scale to 2
 
-            // Configure the relationship between SalesData and Employee
-            modelBuilder.Entity<SalesData>()
-                .HasOne(sd => sd.Employee)
-                .WithMany(e => e.Sales)
-                .HasForeignKey(sd => sd.EmployeeId)
-                .OnDelete(DeleteBehavior.Restrict);
-
-            // Configure the relationship between Employee and Manager (self-referencing)
             modelBuilder.Entity<Employee>()
                 .HasOne(e => e.Manager)
                 .WithMany(e => e.Subordinates)
                 .HasForeignKey(e => e.ManagerId)
-                .OnDelete(DeleteBehavior.Restrict);
+                .OnDelete(DeleteBehavior.ClientSetNull); // Important!
+
+            // Employee-Sales relationship
+            modelBuilder.Entity<SalesData>()
+                .HasOne(s => s.Employee)
+                .WithMany(e => e.Sales)
+                .HasForeignKey(s => s.EmployeeId)
+                .OnDelete(DeleteBehavior.Cascade);
 
             // Seed manager
             modelBuilder.Entity<Employee>().HasData(

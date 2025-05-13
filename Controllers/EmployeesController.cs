@@ -8,10 +8,12 @@ namespace Final_Project.Controllers
     public class EmployeesController : Controller
     {
         private readonly AppDbContext _context;
+        private readonly ILogger<EmployeesController> _logger;
 
-        public EmployeesController(AppDbContext context)
+        public EmployeesController(AppDbContext context, ILogger<EmployeesController> logger)
         {
             _context = context;
+            _logger = logger;
         }
 
         // GET: Employees
@@ -127,28 +129,62 @@ namespace Final_Project.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteConfirmed(int id)
         {
-            var employee = await _context.Employees
-                .Include(e => e.Sales) // Include related sales data
-                .FirstOrDefaultAsync(e => e.EmployeeId == id);
-
-            if (employee == null)
+            try
             {
-                return NotFound();
+                var employee = await _context.Employees
+                    .Include(e => e.Sales)
+                    .Include(e => e.Subordinates)
+                    .FirstOrDefaultAsync(e => e.EmployeeId == id);
+
+                if (employee == null)
+                {
+                    _logger.LogWarning("Employee not found with ID: {EmployeeId}", id);
+                    return NotFound();
+                }
+
+                // Log deletion attempt
+                _logger.LogInformation("Attempting to delete employee {EmployeeId}: {FirstName} {LastName}",
+                    employee.EmployeeId, employee.Firstname, employee.Lastname);
+
+                // Handle subordinates (manager case)
+                if (employee.Subordinates.Any())
+                {
+                    _logger.LogInformation("Reassigning {Count} subordinates from manager {EmployeeId}",
+                        employee.Subordinates.Count, employee.EmployeeId);
+
+                    foreach (var subordinate in employee.Subordinates)
+                    {
+                        subordinate.ManagerId = null;
+                    }
+                }
+
+                // Delete associated sales
+                if (employee.Sales.Any())
+                {
+                    _logger.LogInformation("Deleting {Count} sales records for employee {EmployeeId}",
+                        employee.Sales.Count, employee.EmployeeId);
+
+                    _context.SalesData.RemoveRange(employee.Sales);
+                }
+
+                _context.Employees.Remove(employee);
+                await _context.SaveChangesAsync();
+
+                _logger.LogInformation("Successfully deleted employee {EmployeeId}", employee.EmployeeId);
+                return RedirectToAction(nameof(Index));
             }
-
-            // Prevent deletion if sales records exist
-            if (employee.Sales.Any())
+            catch (DbUpdateException ex)
             {
-                TempData["ErrorMessage"] = "Cannot delete employee because they have associated sales records.";
+                _logger.LogError(ex, "Error deleting employee {EmployeeId}", id);
+                TempData["ErrorMessage"] = "Could not delete employee. Please try again.";
                 return RedirectToAction(nameof(Delete), new { id });
             }
-
-            // Or delete the sales records first
-            // _context.SalesData.RemoveRange(employee.Sales);
-
-            _context.Employees.Remove(employee);
-            await _context.SaveChangesAsync();
-            return RedirectToAction(nameof(Index));
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Unexpected error deleting employee {EmployeeId}", id);
+                TempData["ErrorMessage"] = "An unexpected error occurred.";
+                return RedirectToAction(nameof(Index));
+            }
         }
 
         private bool EmployeeExists(int id)

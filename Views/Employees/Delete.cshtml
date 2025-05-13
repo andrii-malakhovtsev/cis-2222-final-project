@@ -1,7 +1,14 @@
-﻿@model Final_Project.Models.Employee
+﻿@model Employee
 
 @{
     ViewData["Title"] = "Delete";
+}
+
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger">
+        @TempData["ErrorMessage"]
+    </div>
 }
 
 <h1>Delete</h1>

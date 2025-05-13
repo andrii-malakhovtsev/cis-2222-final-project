@@ -12,6 +12,9 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 var app = builder.Build();
 
+// Logger
+builder.Services.AddLogging();
+
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
 {
