@@ -195,6 +195,11 @@ namespace Final_Project.Controllers
             {
                 ModelState.AddModelError("Amount", "Amount must be greater than zero.");
             }
+
+            if (salesData.Year > DateTime.Today.Year)
+            {
+                ModelState.AddModelError("Year", "Year cannot be in the future.");
+            }
         }
     }
 }
