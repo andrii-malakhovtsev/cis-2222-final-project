@@ -22,6 +22,7 @@ namespace Final_Project.Models
 
         [Required(ErrorMessage = "Employee is required!")]
         [Display(Name = "Employee")]
+        [SaleDateAfterHireDate]
         public int EmployeeId { get; set; }
 
         public Employee? Employee { get; set; }

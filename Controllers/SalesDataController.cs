@@ -40,6 +40,9 @@ namespace Final_Project.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create([Bind("SalesDataId,Quarter,Year,Amount,EmployeeId")] SalesData salesData)
         {
+            // Load the employee to validate hire date
+            var employee = await _context.Employees.FindAsync(salesData.EmployeeId);
+
             // Check for duplicate sales data
             bool isDuplicate = await _context.SalesData
                 .AnyAsync(s => s.Quarter == salesData.Quarter
@@ -51,6 +54,16 @@ namespace Final_Project.Controllers
                 ModelState.AddModelError("", "Sales data for this employee, quarter, and year already exists.");
             }
 
+            // Add hire date validation
+            if (employee != null)
+            {
+                var saleDate = new DateTime(salesData.Year, (salesData.Quarter - 1) * 3 + 1, 1);
+                if (saleDate < employee.DateOfHire)
+                {
+                    ModelState.AddModelError("", $"Cannot create sales before employee's hire date ({employee.DateOfHire:yyyy-MM-dd})");
+                }
+            }
+
             if (ModelState.IsValid)
             {
                 _context.Add(salesData);
@@ -58,6 +71,7 @@ namespace Final_Project.Controllers
                 return RedirectToAction(nameof(Index));
             }
 
+            // Repopulate dropdown if validation fails
             ViewBag.EmployeeId = new SelectList(_context.Employees, "EmployeeId", "FullName", salesData.EmployeeId);
             return View(salesData);
         }
