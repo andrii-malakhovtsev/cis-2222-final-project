@@ -7,10 +7,12 @@ namespace Final_Project.Controllers
 {
     public class SalesDataController : Controller
     {
+        private readonly ILogger<HomeController> _logger;
         private readonly AppDbContext _context;
 
-        public SalesDataController(AppDbContext context)
+        public SalesDataController(ILogger<HomeController> logger, AppDbContext context)
         {
+            _logger = logger;
             _context = context;
         }
 
@@ -40,38 +42,23 @@ namespace Final_Project.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create([Bind("SalesDataId,Quarter,Year,Amount,EmployeeId")] SalesData salesData)
         {
-            // Load the employee to validate hire date
-            var employee = await _context.Employees.FindAsync(salesData.EmployeeId);
-
-            // Check for duplicate sales data
-            bool isDuplicate = await _context.SalesData
-                .AnyAsync(s => s.Quarter == salesData.Quarter
-                    && s.Year == salesData.Year
-                    && s.EmployeeId == salesData.EmployeeId);
-
-            if (isDuplicate)
-            {
-                ModelState.AddModelError("", "Sales data for this employee, quarter, and year already exists.");
-            }
-
-            // Add hire date validation
-            if (employee != null)
-            {
-                var saleDate = new DateTime(salesData.Year, (salesData.Quarter - 1) * 3 + 1, 1);
-                if (saleDate < employee.DateOfHire)
-                {
-                    ModelState.AddModelError("", $"Cannot create sales before employee's hire date ({employee.DateOfHire:yyyy-MM-dd})");
-                }
-            }
+            await ValidateSalesData(salesData);
 
             if (ModelState.IsValid)
             {
-                _context.Add(salesData);
-                await _context.SaveChangesAsync();
-                return RedirectToAction(nameof(Index));
+                try
+                {
+                    _context.Add(salesData);
+                    await _context.SaveChangesAsync();
+                    return RedirectToAction(nameof(Index));
+                }
+                catch (DbUpdateException ex)
+                {
+                    _logger.LogError(ex, "Error creating sales record");
+                    ModelState.AddModelError("", "An error occurred while saving. Please try again.");
+                }
             }
 
-            // Repopulate dropdown if validation fails
             ViewBag.EmployeeId = new SelectList(_context.Employees, "EmployeeId", "FullName", salesData.EmployeeId);
             return View(salesData);
         }
@@ -103,27 +90,33 @@ namespace Final_Project.Controllers
                 return NotFound();
             }
 
+            await ValidateSalesData(salesData, isEdit: true);
+
             if (ModelState.IsValid)
             {
                 try
                 {
                     _context.Update(salesData);
                     await _context.SaveChangesAsync();
+                    return RedirectToAction(nameof(Index));
                 }
-                catch (DbUpdateConcurrencyException)
+                catch (DbUpdateConcurrencyException ex)
                 {
                     if (!SalesDataExists(salesData.SalesDataId))
                     {
                         return NotFound();
                     }
-                    else
-                    {
-                        throw;
-                    }
+                    _logger.LogError(ex, "Concurrency error editing sales record");
+                    ModelState.AddModelError("", "The record was modified by another user. Please refresh and try again.");
                 }
-                return RedirectToAction(nameof(Index));
+                catch (DbUpdateException ex)
+                {
+                    _logger.LogError(ex, "Error editing sales record");
+                    ModelState.AddModelError("", "An error occurred while saving. Please try again.");
+                }
             }
-            ViewData["EmployeeId"] = new SelectList(_context.Employees, "EmployeeId", "Firstname", salesData.EmployeeId);
+
+            ViewData["EmployeeId"] = new SelectList(_context.Employees, "EmployeeId", "FullName", salesData.EmployeeId);
             return View(salesData);
         }
 
@@ -165,6 +158,43 @@ namespace Final_Project.Controllers
         private bool SalesDataExists(int id)
         {
             return _context.SalesData.Any(e => e.SalesDataId == id);
+        }
+
+        private async Task ValidateSalesData(SalesData salesData, bool isEdit = false)
+        {
+            // Load employee if not already loaded
+            var employee = await _context.Employees.FindAsync(salesData.EmployeeId);
+
+            // Check for duplicates (excluding current record if editing)
+            var duplicateQuery = _context.SalesData
+                .Where(s => s.Quarter == salesData.Quarter
+                         && s.Year == salesData.Year
+                         && s.EmployeeId == salesData.EmployeeId);
+
+            if (isEdit)
+            {
+                duplicateQuery = duplicateQuery.Where(s => s.SalesDataId != salesData.SalesDataId);
+            }
+
+            if (await duplicateQuery.AnyAsync())
+            {
+                ModelState.AddModelError("", "Sales data for this employee, quarter, and year already exists.");
+            }
+
+            // Validate sale date vs hire date
+            if (employee != null)
+            {
+                var saleDate = new DateTime(salesData.Year, (salesData.Quarter - 1) * 3 + 1, 1);
+                if (saleDate < employee.DateOfHire)
+                {
+                    ModelState.AddModelError("", $"Cannot create sales before employee's hire date ({employee.DateOfHire:yyyy-MM-dd})");
+                }
+            }
+
+            if (salesData.Amount <= 0)
+            {
+                ModelState.AddModelError("Amount", "Amount must be greater than zero.");
+            }
         }
     }
 }
