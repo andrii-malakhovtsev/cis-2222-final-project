@@ -52,6 +52,12 @@ namespace Final_Project.Controllers
                 ModelState.AddModelError("ManagerId", "Employee cannot be their own manager.");
             }
 
+            // Explicit date validation (as backup to attributes)
+            if (employee.DateOfHire < employee.DOB)
+            {
+                ModelState.AddModelError("DateOfHire", "Date of hire must be after date of birth.");
+            }
+
             if (ModelState.IsValid)
             {
                 _context.Add(employee);

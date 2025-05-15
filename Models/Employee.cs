@@ -26,7 +26,7 @@ namespace Final_Project.Models
         [Required(ErrorMessage = "Date of hire is required!")]
         [DataType(DataType.Date)]
         [PastDate(ErrorMessage = "Date of hire must be in the past.")]
-        [HireDateAfter1995(ErrorMessage = "Hire date must not be before 1/1/1995.")]
+        [HireDateValidation]
         [Display(Name = "Date of Hire")]
         public DateTime DateOfHire { get; set; }
 
